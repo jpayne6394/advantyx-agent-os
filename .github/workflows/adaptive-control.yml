@@ -43,7 +43,6 @@ jobs:
               if (labels.includes('failure:scope')) failures.scope++;
             });
 
-            // Thresholds
             const STALE_THRESHOLD = 5;
             const RETRY_THRESHOLD = 3;
             const HUMAN_THRESHOLD = 3;
@@ -51,7 +50,6 @@ jobs:
             for (const pr of prs) {
               const labels = pr.labels.map(l => l.name);
 
-              // Stale backlog pressure
               if (stale >= STALE_THRESHOLD && labels.includes('queue:waiting')) {
                 await github.rest.issues.addLabels({
                   ...repo,
@@ -60,7 +58,6 @@ jobs:
                 });
               }
 
-              // Retry pressure
               if (retry >= RETRY_THRESHOLD && labels.includes('retry:needed')) {
                 await github.rest.issues.addLabels({
                   ...repo,
@@ -69,7 +66,6 @@ jobs:
                 });
               }
 
-              // Human overload
               if (human >= HUMAN_THRESHOLD && labels.includes('priority:low')) {
                 await github.rest.issues.addLabels({
                   ...repo,
@@ -78,7 +74,6 @@ jobs:
                 });
               }
 
-              // Failure tuning
               if (failures.test > failures.scope && labels.includes('failure:test')) {
                 await github.rest.issues.addLabels({
                   ...repo,
@@ -96,8 +91,10 @@ jobs:
               }
             }
 
-            await github.rest.issues.createComment({
-              ...repo,
-              issue_number: prs[0]?.number || 1,
-              body: `Adaptive control run:\n- stale: ${stale}\n- retry: ${retry}\n- human: ${human}`
-            });
+            if (prs.length > 0) {
+              await github.rest.issues.createComment({
+                ...repo,
+                issue_number: prs[0].number,
+                body: `Adaptive control run:\n- stale: ${stale}\n- retry: ${retry}\n- human: ${human}`
+              });
+            }
