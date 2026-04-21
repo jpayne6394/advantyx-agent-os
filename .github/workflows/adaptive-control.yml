@@ -1,0 +1,103 @@
+name: Adaptive Control
+
+on:
+  schedule:
+    - cron: '15 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  adapt:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Evaluate system state
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const repo = context.repo;
+
+            const { data: prs } = await github.rest.pulls.list({
+              ...repo,
+              state: 'open',
+              per_page: 100
+            });
+
+            let stale = 0;
+            let retry = 0;
+            let human = 0;
+            let failures = { test: 0, scope: 0 };
+
+            prs.forEach(pr => {
+              const labels = pr.labels.map(l => l.name);
+              const age = (Date.now() - new Date(pr.created_at)) / (1000*60*60);
+
+              if (age > 24) stale++;
+              if (labels.includes('retry:needed')) retry++;
+              if (labels.includes('needs-human')) human++;
+
+              if (labels.includes('failure:test')) failures.test++;
+              if (labels.includes('failure:scope')) failures.scope++;
+            });
+
+            // Thresholds
+            const STALE_THRESHOLD = 5;
+            const RETRY_THRESHOLD = 3;
+            const HUMAN_THRESHOLD = 3;
+
+            for (const pr of prs) {
+              const labels = pr.labels.map(l => l.name);
+
+              // Stale backlog pressure
+              if (stale >= STALE_THRESHOLD && labels.includes('queue:waiting')) {
+                await github.rest.issues.addLabels({
+                  ...repo,
+                  issue_number: pr.number,
+                  labels: ['analyst:workflow','pressure:stale-backlog']
+                });
+              }
+
+              // Retry pressure
+              if (retry >= RETRY_THRESHOLD && labels.includes('retry:needed')) {
+                await github.rest.issues.addLabels({
+                  ...repo,
+                  issue_number: pr.number,
+                  labels: ['pressure:retry-surge']
+                });
+              }
+
+              // Human overload
+              if (human >= HUMAN_THRESHOLD && labels.includes('priority:low')) {
+                await github.rest.issues.addLabels({
+                  ...repo,
+                  issue_number: pr.number,
+                  labels: ['pressure:human-overload','queue:waiting']
+                });
+              }
+
+              // Failure tuning
+              if (failures.test > failures.scope && labels.includes('failure:test')) {
+                await github.rest.issues.addLabels({
+                  ...repo,
+                  issue_number: pr.number,
+                  labels: ['tune:tests']
+                });
+              }
+
+              if (failures.scope > failures.test && labels.includes('failure:scope')) {
+                await github.rest.issues.addLabels({
+                  ...repo,
+                  issue_number: pr.number,
+                  labels: ['tune:scope']
+                });
+              }
+            }
+
+            await github.rest.issues.createComment({
+              ...repo,
+              issue_number: prs[0]?.number || 1,
+              body: `Adaptive control run:\n- stale: ${stale}\n- retry: ${retry}\n- human: ${human}`
+            });
