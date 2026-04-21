@@ -1,0 +1,39 @@
+name: Priority Assignment
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  pull-requests: write
+  issues: write
+
+jobs:
+  assign:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Assign default priority
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue_number = context.issue.number;
+            const repo = context.repo;
+            const labels = context.payload.pull_request.labels.map(l => l.name);
+
+            const priorities = ['priority:high', 'priority:normal', 'priority:low'];
+            const hasPriority = priorities.some(p => labels.includes(p));
+
+            if (hasPriority) return;
+
+            await github.rest.issues.addLabels({
+              ...repo,
+              issue_number,
+              labels: ['priority:normal']
+            });
+
+            await github.rest.issues.createComment({
+              ...repo,
+              issue_number,
+              body: 'Priority assigned automatically: priority:normal'
+            });
