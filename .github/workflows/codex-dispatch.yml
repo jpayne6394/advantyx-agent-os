@@ -67,6 +67,13 @@ jobs:
               tuning += '\nHUMAN LOAD PRESSURE:\n- avoid escalation triggers\n- produce clean, reviewable diffs';
             }
 
+            // Global tuning injection
+            let global = '';
+            try {
+              const globalState = fs.readFileSync('docs/global-tuning-state.md', 'utf8');
+              global = `\nGLOBAL SYSTEM STATE:\n${globalState}`;
+            } catch (e) {}
+
             let mission = '';
             try {
               mission = fs.readFileSync('docs/current_mission.md', 'utf8');
@@ -80,7 +87,7 @@ jobs:
 
             const changedFiles = files.map(f => `- ${f.filename}`).join('\n') || '- none';
 
-            const body = `@codex\n\nTASK: Execute implementation for ${lane}.\n\n${overlay}\n${tuning}\n\nMISSION:\n${mission}\n\nFILES:\n${changedFiles}\n\nRULES:\n- stay within lane\n- do not expand scope\n- produce minimal diff\n- add tests where required`;
+            const body = `@codex\n\nTASK: Execute implementation for ${lane}.\n\n${overlay}\n${tuning}\n${global}\n\nMISSION:\n${mission}\n\nFILES:\n${changedFiles}\n\nRULES:\n- stay within lane\n- do not expand scope\n- produce minimal diff\n- add tests where required`;
 
             await github.rest.issues.createComment({
               ...context.repo,
