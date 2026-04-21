@@ -1,0 +1,49 @@
+# Agent routing + merge strategy
+
+lanes:
+  backend:
+    match:
+      - "backend/**"
+      - "app/**"
+    label: "agent:backend"
+    merge: squash
+
+  frontend:
+    match:
+      - "ui/**"
+      - "frontend/**"
+    label: "agent:frontend"
+    merge: squash
+
+  data:
+    match:
+      - "db/**"
+      - "migrations/**"
+    label: "agent:data"
+    merge: rebase
+
+  qa:
+    match:
+      - "tests/**"
+    label: "agent:qa"
+    merge: squash
+
+  platform:
+    match:
+      - ".github/**"
+      - "infra/**"
+    label: "agent:platform"
+    merge: squash
+
+labels:
+  required_for_merge:
+    - "review:pass"
+    - "guard:pass"
+    - "automerge"
+
+  blocking:
+    - "review:fail"
+    - "guard:fail"
+    - "needs-human"
+    - "do-not-merge"
+
