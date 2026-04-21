@@ -1,0 +1,73 @@
+name: Priority Queue Dispatch
+
+on:
+  pull_request:
+    types: [labeled, synchronize, reopened]
+
+permissions:
+  issues: write
+  pull-requests: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check priority and dispatch
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const repo = context.repo;
+            const issue_number = context.issue.number;
+            const pr = context.payload.pull_request;
+            const labels = pr.labels.map(l => l.name);
+
+            const lane = labels.find(l => l.startsWith('agent:'));
+            if (!lane) return;
+
+            const priority = labels.find(l => l.startsWith('priority:')) || 'priority:normal';
+
+            const { data: prs } = await github.rest.pulls.list({
+              ...repo,
+              state: 'open',
+              per_page: 50
+            });
+
+            const higherPriorityExists = prs.some(p => {
+              if (p.number === issue_number) return false;
+              const pLabels = p.labels.map(l => l.name);
+              return pLabels.includes('priority:high') && priority !== 'priority:high';
+            });
+
+            if (higherPriorityExists) {
+              await github.rest.issues.addLabels({
+                ...repo,
+                issue_number,
+                labels: ['queue:waiting']
+              });
+
+              await github.rest.issues.createComment({
+                ...repo,
+                issue_number,
+                body: 'Dispatch delayed: higher priority PR exists.'
+              });
+              return;
+            }
+
+            await github.rest.issues.removeLabel({
+              ...repo,
+              issue_number,
+              name: 'queue:waiting'
+            }).catch(() => {});
+
+            await github.rest.issues.addLabels({
+              ...repo,
+              issue_number,
+              labels: ['queue:active']
+            });
+
+            await github.rest.issues.createComment({
+              ...repo,
+              issue_number,
+              body: `Priority dispatch active (${priority}). Codex execution should proceed.`
+            });
