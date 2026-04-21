@@ -1,0 +1,35 @@
+name: Failure Recovery
+
+on:
+  pull_request:
+    types: [synchronize]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Evaluate failure labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = context.payload.pull_request.labels.map(l => l.name);
+
+            const failed = labels.includes('test:fail') || labels.includes('review:fail') || labels.includes('guard:fail');
+
+            if (failed) {
+              await github.rest.issues.addLabels({
+                ...context.repo,
+                issue_number: context.issue.number,
+                labels: ['retry:needed']
+              });
+
+              await github.rest.issues.removeLabel({
+                ...context.repo,
+                issue_number: context.issue.number,
+                name: 'automerge'
+              }).catch(() => {});
+            }
