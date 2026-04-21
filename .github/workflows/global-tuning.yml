@@ -24,70 +24,49 @@ jobs:
             const fs = require('fs');
             const repo = context.repo;
 
-            const { data: prs } = await github.rest.pulls.list({
-              ...repo,
-              state: 'open',
-              per_page: 100
-            });
+            const DECAY = 0.85;
 
-            let counts = {
-              test: 0,
-              scope: 0,
-              quality: 0,
-              human: 0,
-              retry: 0,
-              stale: 0
-            };
+            let scores = { test: 0, scope: 0, quality: 0 };
+
+            try {
+              const prev = fs.readFileSync('docs/global-tuning-state.md','utf8');
+              const match = prev.match(/test_failure_count: (\d+).*scope_failure_count: (\d+).*quality_failure_count: (\d+)/s);
+              if (match) {
+                scores.test = parseFloat(match[1]) * DECAY;
+                scores.scope = parseFloat(match[2]) * DECAY;
+                scores.quality = parseFloat(match[3]) * DECAY;
+              }
+            } catch(e) {}
+
+            const { data: prs } = await github.rest.pulls.list({ ...repo, state:'open', per_page:100 });
 
             prs.forEach(pr => {
-              const labels = pr.labels.map(l => l.name);
-              const age = (Date.now() - new Date(pr.created_at)) / (1000*60*60);
-
-              if (labels.includes('failure:test')) counts.test++;
-              if (labels.includes('failure:scope')) counts.scope++;
-              if (labels.includes('failure:quality')) counts.quality++;
-              if (labels.includes('needs-human')) counts.human++;
-              if (labels.includes('retry:needed')) counts.retry++;
-              if (age > 24) counts.stale++;
+              const labels = pr.labels.map(l=>l.name);
+              if (labels.includes('failure:test')) scores.test += 1;
+              if (labels.includes('failure:scope')) scores.scope += 1;
+              if (labels.includes('failure:quality')) scores.quality += 1;
             });
 
             let dominant = 'none';
-            const max = Math.max(counts.test, counts.scope, counts.quality);
+            const max = Math.max(scores.test, scores.scope, scores.quality);
+            if (max === scores.test && max > 2) dominant = 'test';
+            if (max === scores.scope && max > 2) dominant = 'scope';
+            if (max === scores.quality && max > 2) dominant = 'quality';
 
-            if (max === counts.test && max > 0) dominant = 'test';
-            if (max === counts.scope && max > 0) dominant = 'scope';
-            if (max === counts.quality && max > 0) dominant = 'quality';
+            let rules = [];
+            if (dominant === 'test') rules.push('- Require strict test coverage and edge cases');
+            if (dominant === 'scope') rules.push('- Enforce strict file boundaries and minimal diffs');
 
-            let tuning = [];
+            fs.writeFileSync('docs/generated-prompt-rules.md', `# Generated Prompt Rules\n\n## Rules\n\n${rules.join('\n') || '_No rules generated_'}\n`);
 
-            if (dominant === 'test') tuning.push('tune:tests');
-            if (dominant === 'scope') tuning.push('tune:scope');
-
-            if (counts.retry >= 3) tuning.push('pressure:retry-surge');
-            if (counts.stale >= 5) tuning.push('pressure:stale-backlog');
-            if (counts.human >= 3) tuning.push('pressure:human-overload');
-
-            const state = `# Global Tuning State
-
-```yaml
-dominant_failure_mode: ${dominant}
-test_failure_count: ${counts.test}
-scope_failure_count: ${counts.scope}
-quality_failure_count: ${counts.quality}
-human_escalation_count: ${counts.human}
-retry_surge_count: ${counts.retry}
-stale_backlog_count: ${counts.stale}
-recommended_default_tuning: [${tuning.join(', ')}]
-last_updated: ${new Date().toISOString()}
-```
-`;
+            const state = `# Global Tuning State\n\n\`\`\`yaml\ndominant_failure_mode: ${dominant}\ntest_failure_count: ${scores.test.toFixed(2)}\nscope_failure_count: ${scores.scope.toFixed(2)}\nquality_failure_count: ${scores.quality.toFixed(2)}\ndecay_factor: ${DECAY}\nlast_updated: ${new Date().toISOString()}\n\`\`\``;
 
             fs.writeFileSync('docs/global-tuning-state.md', state);
 
-      - name: Commit tuning state
+      - name: Commit tuning outputs
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git add docs/global-tuning-state.md
-          git commit -m "Update global tuning state" || echo "No changes"
+          git add docs/global-tuning-state.md docs/generated-prompt-rules.md
+          git commit -m "Update global tuning with decay and rules" || echo "No changes"
           git push
