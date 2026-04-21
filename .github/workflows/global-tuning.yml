@@ -1,0 +1,93 @@
+name: Global Tuning
+
+on:
+  schedule:
+    - cron: '30 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  tune:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Analyze failures and update tuning
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const repo = context.repo;
+
+            const { data: prs } = await github.rest.pulls.list({
+              ...repo,
+              state: 'open',
+              per_page: 100
+            });
+
+            let counts = {
+              test: 0,
+              scope: 0,
+              quality: 0,
+              human: 0,
+              retry: 0,
+              stale: 0
+            };
+
+            prs.forEach(pr => {
+              const labels = pr.labels.map(l => l.name);
+              const age = (Date.now() - new Date(pr.created_at)) / (1000*60*60);
+
+              if (labels.includes('failure:test')) counts.test++;
+              if (labels.includes('failure:scope')) counts.scope++;
+              if (labels.includes('failure:quality')) counts.quality++;
+              if (labels.includes('needs-human')) counts.human++;
+              if (labels.includes('retry:needed')) counts.retry++;
+              if (age > 24) counts.stale++;
+            });
+
+            let dominant = 'none';
+            const max = Math.max(counts.test, counts.scope, counts.quality);
+
+            if (max === counts.test && max > 0) dominant = 'test';
+            if (max === counts.scope && max > 0) dominant = 'scope';
+            if (max === counts.quality && max > 0) dominant = 'quality';
+
+            let tuning = [];
+
+            if (dominant === 'test') tuning.push('tune:tests');
+            if (dominant === 'scope') tuning.push('tune:scope');
+
+            if (counts.retry >= 3) tuning.push('pressure:retry-surge');
+            if (counts.stale >= 5) tuning.push('pressure:stale-backlog');
+            if (counts.human >= 3) tuning.push('pressure:human-overload');
+
+            const state = `# Global Tuning State
+
+```yaml
+dominant_failure_mode: ${dominant}
+test_failure_count: ${counts.test}
+scope_failure_count: ${counts.scope}
+quality_failure_count: ${counts.quality}
+human_escalation_count: ${counts.human}
+retry_surge_count: ${counts.retry}
+stale_backlog_count: ${counts.stale}
+recommended_default_tuning: [${tuning.join(', ')}]
+last_updated: ${new Date().toISOString()}
+```
+`;
+
+            fs.writeFileSync('docs/global-tuning-state.md', state);
+
+      - name: Commit tuning state
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add docs/global-tuning-state.md
+          git commit -m "Update global tuning state" || echo "No changes"
+          git push
