@@ -1,0 +1,63 @@
+name: Retry Limiter
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  limit:
+    if: contains(join(github.event.pull_request.labels.*.name, ','), 'retry:')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Enforce retry limits
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue_number = context.issue.number;
+            const repo = context.repo;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              ...repo,
+              issue_number,
+              per_page: 100
+            });
+
+            const retryComments = comments.filter(c => c.body && c.body.includes('Retry execution'));
+            const retryCount = retryComments.length;
+
+            const MAX_RETRIES = 3;
+
+            if (retryCount >= MAX_RETRIES) {
+              await github.rest.issues.addLabels({
+                ...repo,
+                issue_number,
+                labels: ['needs-human','retry:limit-reached']
+              });
+
+              await github.rest.issues.createComment({
+                ...repo,
+                issue_number,
+                body: `Retry limit reached (${retryCount}). Escalating to human review.`
+              });
+
+              try {
+                await github.rest.issues.removeLabel({
+                  ...repo,
+                  issue_number,
+                  name: 'automerge'
+                });
+              } catch (e) {}
+
+              return;
+            }
+
+            await github.rest.issues.addLabels({
+              ...repo,
+              issue_number,
+              labels: [`retry-count:${retryCount}`]
+            });
