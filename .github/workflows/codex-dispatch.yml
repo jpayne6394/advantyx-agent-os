@@ -6,16 +6,22 @@ on:
 
 permissions:
   issues: write
+  contents: read
+  pull-requests: read
 
 jobs:
   dispatch:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Dispatch to Codex
         uses: actions/github-script@v7
         with:
           script: |
+            const fs = require('fs');
             const pr = context.payload.pull_request;
             const labels = pr.labels.map(l => l.name);
             const issue_number = context.issue.number;
@@ -26,19 +32,35 @@ jobs:
             let instructions = '';
 
             if (lane === 'agent:backend') {
-              instructions = 'Implement backend changes only. Follow AGENT_CONTROL.md and current mission. Add tests. Do not modify frontend.';
+              instructions = 'Implement backend changes only. Add tests. Do not modify frontend or unrelated paths.';
             }
             if (lane === 'agent:frontend') {
-              instructions = 'Implement UI changes only. Follow mission constraints. Do not modify backend.';
+              instructions = 'Implement UI changes only. Preserve backend behavior. Add tests when applicable.';
             }
             if (lane === 'agent:data') {
-              instructions = 'Implement data or migration changes. Ensure safety and reversibility.';
+              instructions = 'Implement data or migration changes only. Keep changes safe and reversible. Add tests or validation steps.';
+            }
+            if (lane === 'agent:platform') {
+              instructions = 'Implement workflow or platform changes only. Do not modify product code unless explicitly required by mission.';
             }
 
-            const body = `@codex\n\nTASK: Execute implementation for ${lane}.\n\nRULES:\n- Follow AGENT_CONTROL.md\n- Follow docs/current_mission.md\n- Stay within lane\n- Add tests\n- Produce clean diff\n\nINSTRUCTIONS:\n${instructions}`;
+            let mission = 'Mission file unavailable.';
+            try {
+              mission = fs.readFileSync('docs/current_mission.md', 'utf8');
+            } catch (e) {}
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              ...context.repo,
+              pull_number: issue_number,
+              per_page: 100
+            });
+
+            const changedFiles = files.map(f => `- ${f.filename}`).join('\n') || '- none';
+
+            const body = `@codex\n\nTASK: Execute implementation for ${lane}.\n\nPRIMARY LANE:\n${lane}\n\nRULES:\n- Follow AGENT_CONTROL.md\n- Stay within assigned lane\n- Do not expand scope\n- Add tests when code changes require them\n- Produce a clean diff\n\nMISSION:\n\n${mission}\n\nCURRENT PR FILES:\n${changedFiles}\n\nLANE-SPECIFIC INSTRUCTIONS:\n${instructions}`;
 
             await github.rest.issues.createComment({
               ...context.repo,
               issue_number,
-              body
+              body: body.slice(0, 60000)
             });
