@@ -1,0 +1,88 @@
+name: Metrics Dashboard
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  metrics:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compute metrics
+        id: metrics
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const repo = context.repo;
+
+            const { data: prs } = await github.rest.pulls.list({
+              ...repo,
+              state: 'open',
+              per_page: 100
+            });
+
+            let totals = {
+              total: prs.length,
+              mergeReady: 0,
+              blocked: 0,
+              retry: 0,
+              drift: 0,
+              human: 0,
+              active: 0,
+              waiting: 0
+            };
+
+            let priorities = { high: 0, normal: 0, low: 0 };
+            let failures = { test: 0, quality: 0, scope: 0 };
+
+            let ages = [];
+
+            prs.forEach(pr => {
+              const labels = pr.labels.map(l => l.name);
+
+              if (labels.includes('merge:ready')) totals.mergeReady++;
+              if (labels.includes('needs-human')) totals.human++;
+              if (labels.includes('retry:needed')) totals.retry++;
+              if (labels.includes('drift:detected')) totals.drift++;
+              if (labels.includes('queue:active')) totals.active++;
+              if (labels.includes('queue:waiting')) totals.waiting++;
+
+              if (labels.some(l => l.endsWith(':fail'))) totals.blocked++;
+
+              if (labels.includes('priority:high')) priorities.high++;
+              else if (labels.includes('priority:low')) priorities.low++;
+              else priorities.normal++;
+
+              if (labels.includes('failure:test')) failures.test++;
+              if (labels.includes('failure:quality')) failures.quality++;
+              if (labels.includes('failure:scope')) failures.scope++;
+
+              const age = (Date.now() - new Date(pr.created_at)) / (1000*60*60);
+              ages.push(age);
+            });
+
+            const avgAge = ages.length ? (ages.reduce((a,b)=>a+b,0)/ages.length).toFixed(1) : 0;
+            const stale = ages.filter(a => a > 24).length;
+
+            const now = new Date().toISOString();
+
+            const content = `# Agent OS Metrics Dashboard\n\n_Last updated: ${now}_\n\n## Overview\n- Total PRs: ${totals.total}\n- Merge Ready: ${totals.mergeReady}\n- Blocked: ${totals.blocked}\n- Retry Needed: ${totals.retry}\n- Drift Detected: ${totals.drift}\n- Needs Human: ${totals.human}\n\n## Queue\n- Active: ${totals.active}\n- Waiting: ${totals.waiting}\n\n## Priority Mix\n- High: ${priorities.high}\n- Normal: ${priorities.normal}\n- Low: ${priorities.low}\n\n## Failure Types\n- Test: ${failures.test}\n- Quality: ${failures.quality}\n- Scope: ${failures.scope}\n\n## Timing\n- Avg Age (hrs): ${avgAge}\n- Stale (>24h): ${stale}\n`;
+
+            require('fs').writeFileSync('docs/metrics-dashboard.md', content);
+
+      - name: Commit dashboard
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add docs/metrics-dashboard.md
+          git commit -m "Update metrics dashboard" || echo "No changes"
+          git push
