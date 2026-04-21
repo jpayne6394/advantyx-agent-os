@@ -1,0 +1,56 @@
+name: Diff Size Enforcement
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+  issues: write
+
+jobs:
+  enforce:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Evaluate diff size
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue_number = context.issue.number;
+            const repo = context.repo;
+
+            const pr = context.payload.pull_request;
+            const filesChanged = pr.changed_files;
+            const additions = pr.additions;
+            const deletions = pr.deletions;
+
+            const MAX_FILES = 25;
+            const MAX_CHANGES = 800;
+
+            async function addLabels(labelsToAdd) {
+              if (!labelsToAdd.length) return;
+              await github.rest.issues.addLabels({ ...repo, issue_number, labels: labelsToAdd });
+            }
+            async function removeLabel(name) {
+              try {
+                await github.rest.issues.removeLabel({ ...repo, issue_number, name });
+              } catch (e) {}
+            }
+
+            await removeLabel('diff:pass');
+            await removeLabel('diff:fail');
+
+            const totalChanges = additions + deletions;
+
+            if (filesChanged > MAX_FILES || totalChanges > MAX_CHANGES) {
+              await addLabels(['diff:fail', 'review:fail', 'needs-human']);
+              await github.rest.issues.createComment({
+                ...repo,
+                issue_number,
+                body: `Diff too large for autonomous merge. Files: ${filesChanged}/${MAX_FILES}, Changes: ${totalChanges}/${MAX_CHANGES}`
+              });
+              return;
+            }
+
+            await addLabels(['diff:pass']);
