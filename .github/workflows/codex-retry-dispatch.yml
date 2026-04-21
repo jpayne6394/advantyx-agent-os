@@ -6,6 +6,8 @@ on:
 
 permissions:
   issues: write
+  pull-requests: read
+  contents: read
 
 jobs:
   retry:
@@ -13,10 +15,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Dispatch retry to Codex
         uses: actions/github-script@v7
         with:
           script: |
+            const fs = require('fs');
             const pr = context.payload.pull_request;
             const labels = pr.labels.map(l => l.name);
             const issue_number = context.issue.number;
@@ -24,10 +30,25 @@ jobs:
             const retryLabel = labels.find(l => l.startsWith('retry:'));
             if (!retryLabel) return;
 
-            const body = `@codex\n\nTASK: Retry execution for ${retryLabel}.\n\nCONTEXT:\n- Previous attempt failed\n- Review/Guard/Test feedback present in PR\n\nINSTRUCTIONS:\n- Fix issues only\n- Do not expand scope\n- Ensure tests pass\n- Keep changes minimal and targeted`;
+            let mission = '';
+            try {
+              mission = fs.readFileSync('docs/current_mission.md', 'utf8');
+            } catch (e) {}
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              ...context.repo,
+              pull_number: issue_number,
+              per_page: 100
+            });
+
+            const fileSummary = files.map(f => `- ${f.filename} (${f.status})`).join('\n');
+
+            const failureLabels = labels.filter(l => l.endsWith(':fail') || l === 'tests-required').join(', ');
+
+            const body = `@codex\n\nTASK: Retry execution for ${retryLabel}.\n\nCONTEXT:\n- Previous attempt failed\n- Failure signals: ${failureLabels || 'unknown'}\n\nMISSION:\n${mission}\n\nCHANGED FILES:\n${fileSummary}\n\nINSTRUCTIONS:\n- Fix only the issues causing failure\n- Do not expand scope\n- Ensure tests pass\n- Keep changes minimal and targeted\n- Do not modify unrelated files`;
 
             await github.rest.issues.createComment({
               ...context.repo,
               issue_number,
-              body
+              body: body.slice(0, 60000)
             });
