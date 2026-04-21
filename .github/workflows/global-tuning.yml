@@ -30,12 +30,12 @@ jobs:
 
             try {
               const prev = fs.readFileSync('docs/global-tuning-state.md','utf8');
-              const match = prev.match(/test_failure_count: (\d+).*scope_failure_count: (\d+).*quality_failure_count: (\d+)/s);
-              if (match) {
-                scores.test = parseFloat(match[1]) * DECAY;
-                scores.scope = parseFloat(match[2]) * DECAY;
-                scores.quality = parseFloat(match[3]) * DECAY;
-              }
+              const testMatch = prev.match(/test_failure_count: (\d+(?:\.\d+)?)/);
+              const scopeMatch = prev.match(/scope_failure_count: (\d+(?:\.\d+)?)/);
+              const qualityMatch = prev.match(/quality_failure_count: (\d+(?:\.\d+)?)/);
+              if (testMatch) scores.test = parseFloat(testMatch[1]) * DECAY;
+              if (scopeMatch) scores.scope = parseFloat(scopeMatch[1]) * DECAY;
+              if (qualityMatch) scores.quality = parseFloat(qualityMatch[1]) * DECAY;
             } catch(e) {}
 
             const { data: prs } = await github.rest.pulls.list({ ...repo, state:'open', per_page:100 });
@@ -56,6 +56,7 @@ jobs:
             let rules = [];
             if (dominant === 'test') rules.push('- Require strict test coverage and edge cases');
             if (dominant === 'scope') rules.push('- Enforce strict file boundaries and minimal diffs');
+            if (dominant === 'quality') rules.push('- Favor smaller, clearer diffs and verify implementation completeness before finishing');
 
             fs.writeFileSync('docs/generated-prompt-rules.md', `# Generated Prompt Rules\n\n## Rules\n\n${rules.join('\n') || '_No rules generated_'}\n`);
 
