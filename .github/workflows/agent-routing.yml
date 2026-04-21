@@ -1,0 +1,60 @@
+name: Agent Routing
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  route:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect changed paths
+        id: changes
+        uses: tj-actions/changed-files@v44
+
+      - name: Assign agent label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const files = `${{ steps.changes.outputs.all_changed_files }}`.split(' ');
+            let lane = null;
+
+            if (files.some(f => f.startsWith('ui/'))) lane = 'agent:frontend';
+            else if (files.some(f => f.startsWith('backend/'))) lane = 'agent:backend';
+            else if (files.some(f => f.startsWith('db/'))) lane = 'agent:data';
+            else lane = 'agent:platform';
+
+            await github.rest.issues.addLabels({
+              ...context.repo,
+              issue_number: context.issue.number,
+              labels: [lane]
+            });
+
+      - name: Mark routing unresolved if multi-lane
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const files = `${{ steps.changes.outputs.all_changed_files }}`.split(' ');
+            const lanes = new Set();
+
+            files.forEach(f => {
+              if (f.startsWith('ui/')) lanes.add('frontend');
+              if (f.startsWith('backend/')) lanes.add('backend');
+              if (f.startsWith('db/')) lanes.add('data');
+            });
+
+            if (lanes.size > 1) {
+              await github.rest.issues.addLabels({
+                ...context.repo,
+                issue_number: context.issue.number,
+                labels: ['routing:unresolved']
+              });
+            }
