@@ -7,6 +7,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write
 
 jobs:
   merge:
@@ -20,6 +21,8 @@ jobs:
           script: |
             const pr = context.payload.pull_request;
             const labels = pr.labels.map(l => l.name);
+            const repo = context.repo;
+            const issue_number = context.issue.number;
 
             const required = ['review:pass','guard:pass','test:pass','automerge'];
             const blocking = [
@@ -29,18 +32,62 @@ jobs:
               'needs-human',
               'do-not-merge',
               'routing:unresolved',
-              'retry:needed'
+              'retry:needed',
+              'queue:waiting'
             ];
 
             const hasRequired = required.every(r => labels.includes(r));
             const hasBlocking = blocking.some(b => labels.includes(b));
             const isReady = !pr.draft;
+            const priority = labels.find(l => l.startsWith('priority:')) || 'priority:normal';
+
+            const { data: prs } = await github.rest.pulls.list({
+              ...repo,
+              state: 'open',
+              per_page: 50
+            });
+
+            const higherPriorityReadyExists = prs.some(p => {
+              if (p.number === issue_number || p.draft) return false;
+              const pLabels = p.labels.map(l => l.name);
+              const pPriority = pLabels.find(l => l.startsWith('priority:')) || 'priority:normal';
+              const pReady = required.every(r => pLabels.includes(r));
+              const pBlocked = blocking.some(b => pLabels.includes(b));
+
+              const rank = {'priority:high': 3, 'priority:normal': 2, 'priority:low': 1};
+              return rank[pPriority] > rank[priority] && pReady && !pBlocked;
+            });
 
             let method = 'squash';
             if (labels.includes('merge:rebase')) method = 'rebase';
             else if (labels.includes('merge:merge')) method = 'merge';
 
-            core.setOutput('merge', hasRequired && !hasBlocking && isReady);
+            if (higherPriorityReadyExists) {
+              try {
+                await github.rest.issues.removeLabel({ ...repo, issue_number, name: 'merge:ready' });
+              } catch (e) {}
+              await github.rest.issues.addLabels({
+                ...repo,
+                issue_number,
+                labels: ['queue:waiting']
+              });
+              await github.rest.issues.createComment({
+                ...repo,
+                issue_number,
+                body: `Merge delayed: a higher priority PR is merge-ready ahead of this ${priority} PR.`
+              });
+            } else {
+              try {
+                await github.rest.issues.removeLabel({ ...repo, issue_number, name: 'queue:waiting' });
+              } catch (e) {}
+              await github.rest.issues.addLabels({
+                ...repo,
+                issue_number,
+                labels: ['merge:ready']
+              });
+            }
+
+            core.setOutput('merge', hasRequired && !hasBlocking && isReady && !higherPriorityReadyExists);
             core.setOutput('method', method);
 
       - name: Merge PR
