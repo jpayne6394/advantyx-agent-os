@@ -1,0 +1,85 @@
+name: File Boundary Enforcement
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+
+permissions:
+  pull-requests: write
+  issues: write
+  contents: read
+
+jobs:
+  enforce:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect changed files
+        id: changes
+        uses: tj-actions/changed-files@v44
+
+      - name: Enforce lane file boundaries
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue_number = context.issue.number;
+            const repo = context.repo;
+            const labels = context.payload.pull_request.labels.map(l => l.name);
+            const files = `${{ steps.changes.outputs.all_changed_files }}`.split(' ').filter(Boolean);
+            const lane = labels.find(l => l.startsWith('agent:'));
+
+            async function addLabels(labelsToAdd) {
+              if (!labelsToAdd.length) return;
+              await github.rest.issues.addLabels({ ...repo, issue_number, labels: labelsToAdd });
+            }
+            async function removeLabel(name) {
+              try {
+                await github.rest.issues.removeLabel({ ...repo, issue_number, name });
+              } catch (e) {}
+            }
+
+            await removeLabel('boundary:pass');
+            await removeLabel('boundary:fail');
+
+            if (!lane) {
+              await addLabels(['boundary:fail', 'needs-human']);
+              await github.rest.issues.createComment({
+                ...repo,
+                issue_number,
+                body: 'Boundary enforcement failed: no agent lane assigned.'
+              });
+              return;
+            }
+
+            const allowed = {
+              'agent:backend': ['backend/'],
+              'agent:frontend': ['ui/', 'frontend/'],
+              'agent:data': ['db/', 'migrations/'],
+              'agent:platform': ['.github/', 'infra/'],
+              'agent:qa': ['tests/']
+            };
+
+            const shared = ['docs/', 'README.md', 'AGENT_CONTROL.md'];
+            const allowedPrefixes = allowed[lane] || [];
+
+            const violations = files.filter(f => {
+              const exactShared = shared.includes(f);
+              const prefixShared = shared.some(s => s.endsWith('/') && f.startsWith(s));
+              const laneAllowed = allowedPrefixes.some(p => f.startsWith(p));
+              return !(exactShared || prefixShared || laneAllowed);
+            });
+
+            if (violations.length) {
+              await addLabels(['boundary:fail', 'guard:fail', 'needs-human']);
+              await github.rest.issues.createComment({
+                ...repo,
+                issue_number,
+                body: `Boundary enforcement failed for ${lane}. Disallowed files:\n- ${violations.join('\n- ')}`
+              });
+              return;
+            }
+
+            await addLabels(['boundary:pass']);
