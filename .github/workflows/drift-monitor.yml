@@ -1,0 +1,68 @@
+name: Drift Monitor
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Analyze open PRs for drift signals
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: prs } = await github.rest.pulls.list({
+              ...context.repo,
+              state: 'open',
+              per_page: 50
+            });
+
+            for (const pr of prs) {
+              const labels = pr.labels.map(l => l.name);
+              const ageHours = (Date.now() - new Date(pr.created_at)) / 1000 / 60 / 60;
+
+              const hasFail = labels.some(l => l.endsWith(':fail'));
+              const missingTest = labels.includes('tests-required');
+              const unresolvedRouting = labels.includes('routing:unresolved');
+
+              let drift = false;
+              let reasons = [];
+
+              if (ageHours > 24) {
+                drift = true;
+                reasons.push('stale-pr');
+              }
+              if (hasFail) {
+                drift = true;
+                reasons.push('failing-checks');
+              }
+              if (missingTest) {
+                drift = true;
+                reasons.push('missing-tests');
+              }
+              if (unresolvedRouting) {
+                drift = true;
+                reasons.push('routing-unresolved');
+              }
+
+              if (drift) {
+                await github.rest.issues.addLabels({
+                  ...context.repo,
+                  issue_number: pr.number,
+                  labels: ['drift:detected']
+                });
+
+                await github.rest.issues.createComment({
+                  ...context.repo,
+                  issue_number: pr.number,
+                  body: `Drift detected: ${reasons.join(', ')}`
+                });
+              }
+            }
