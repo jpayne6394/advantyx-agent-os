@@ -1,0 +1,44 @@
+name: Codex Dispatch
+
+on:
+  pull_request:
+    types: [opened, labeled, synchronize]
+
+permissions:
+  issues: write
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Dispatch to Codex
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const labels = pr.labels.map(l => l.name);
+            const issue_number = context.issue.number;
+
+            const lane = labels.find(l => l.startsWith('agent:'));
+            if (!lane) return;
+
+            let instructions = '';
+
+            if (lane === 'agent:backend') {
+              instructions = 'Implement backend changes only. Follow AGENT_CONTROL.md and current mission. Add tests. Do not modify frontend.';
+            }
+            if (lane === 'agent:frontend') {
+              instructions = 'Implement UI changes only. Follow mission constraints. Do not modify backend.';
+            }
+            if (lane === 'agent:data') {
+              instructions = 'Implement data or migration changes. Ensure safety and reversibility.';
+            }
+
+            const body = `@codex\n\nTASK: Execute implementation for ${lane}.\n\nRULES:\n- Follow AGENT_CONTROL.md\n- Follow docs/current_mission.md\n- Stay within lane\n- Add tests\n- Produce clean diff\n\nINSTRUCTIONS:\n${instructions}`;
+
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number,
+              body
+            });
