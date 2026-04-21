@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Determine retry lane and normalize labels
+      - name: Determine retry lane and priority
         uses: actions/github-script@v7
         with:
           script: |
@@ -32,6 +32,37 @@ jobs:
             ];
 
             const matchedLane = lanePriority.find(label => labels.includes(label));
+            const priority = labels.find(l => l.startsWith('priority:')) || 'priority:normal';
+
+            const { data: prs } = await github.rest.pulls.list({
+              ...repo,
+              state: 'open',
+              per_page: 50
+            });
+
+            const higherPriorityRetryExists = prs.some(p => {
+              if (p.number === issue_number) return false;
+              const pLabels = p.labels.map(l => l.name);
+              const pPriority = pLabels.find(l => l.startsWith('priority:')) || 'priority:normal';
+              const needsRetry = pLabels.includes('retry:needed');
+
+              const rank = {'priority:high': 3, 'priority:normal': 2, 'priority:low': 1};
+              return needsRetry && rank[pPriority] > rank[priority];
+            });
+
+            if (higherPriorityRetryExists) {
+              await github.rest.issues.addLabels({
+                ...repo,
+                issue_number,
+                labels: ['queue:waiting']
+              });
+              await github.rest.issues.createComment({
+                ...repo,
+                issue_number,
+                body: `Retry delayed: higher priority retry exists.`
+              });
+              return;
+            }
 
             if (!matchedLane || labels.includes('routing:unresolved')) {
               await github.rest.issues.addLabels({
@@ -48,7 +79,8 @@ jobs:
               'test:fail',
               'test:pass',
               'tests-required',
-              'automerge'
+              'automerge',
+              'queue:waiting'
             ];
 
             for (const name of labelsToRemove) {
@@ -69,10 +101,10 @@ jobs:
         with:
           script: |
             const labels = context.payload.pull_request.labels.map(l => l.name);
-            const retryLabel = labels.find(name => name.startsWith('retry:agent:')) || labels.find(name => name.startsWith('retry:'));
+            const retryLabel = labels.find(name => name.startsWith('retry:'));
             const message = retryLabel
-              ? `Retry loop activated for ${retryLabel}. Assigned lane should re-run implementation, then Reviewer and Guard should re-evaluate.`
-              : 'Retry loop activated. Human attention required because the execution lane could not be resolved safely.';
+              ? `Priority-aware retry activated for ${retryLabel}.` 
+              : 'Retry loop activated.';
 
             await github.rest.issues.createComment({
               ...context.repo,
