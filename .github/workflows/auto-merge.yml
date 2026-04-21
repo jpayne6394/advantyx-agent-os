@@ -1,0 +1,39 @@
+name: Auto Merge
+
+on:
+  pull_request:
+    types: [labeled, synchronize, opened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check merge eligibility
+        id: check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = context.payload.pull_request.labels.map(l => l.name);
+
+            const required = ['review:pass','guard:pass','automerge'];
+            const blocking = ['review:fail','guard:fail','needs-human','do-not-merge','routing:unresolved'];
+
+            const hasRequired = required.every(r => labels.includes(r));
+            const hasBlocking = blocking.some(b => labels.includes(b));
+
+            core.setOutput('merge', hasRequired && !hasBlocking);
+
+      - name: Merge PR
+        if: steps.check.outputs.merge == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.pulls.merge({
+              ...context.repo,
+              pull_number: context.issue.number
+            });
