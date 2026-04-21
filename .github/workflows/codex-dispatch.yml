@@ -29,22 +29,22 @@ jobs:
             const lane = labels.find(l => l.startsWith('agent:'));
             if (!lane) return;
 
-            let instructions = '';
+            let overlay = '';
 
             if (lane === 'agent:backend') {
-              instructions = 'Implement backend changes only. Add tests. Do not modify frontend or unrelated paths.';
+              overlay = `BACKEND MODE:\n- modify backend only\n- preserve API contracts\n- prefer minimal service/router updates\n- include tests\n- avoid schema changes unless required`;
             }
             if (lane === 'agent:frontend') {
-              instructions = 'Implement UI changes only. Preserve backend behavior. Add tests when applicable.';
+              overlay = `FRONTEND MODE:\n- modify UI only\n- do not change backend behavior\n- maintain layout consistency\n- ensure usability`;
             }
             if (lane === 'agent:data') {
-              instructions = 'Implement data or migration changes only. Keep changes safe and reversible. Add tests or validation steps.';
+              overlay = `DATA MODE:\n- safe migrations only\n- ensure reversibility\n- validate data integrity\n- document assumptions`;
             }
             if (lane === 'agent:platform') {
-              instructions = 'Implement workflow or platform changes only. Do not modify product code unless explicitly required by mission.';
+              overlay = `PLATFORM MODE:\n- modify workflows/infra only\n- maintain security posture\n- avoid product logic changes`;
             }
 
-            let mission = 'Mission file unavailable.';
+            let mission = '';
             try {
               mission = fs.readFileSync('docs/current_mission.md', 'utf8');
             } catch (e) {}
@@ -57,7 +57,7 @@ jobs:
 
             const changedFiles = files.map(f => `- ${f.filename}`).join('\n') || '- none';
 
-            const body = `@codex\n\nTASK: Execute implementation for ${lane}.\n\nPRIMARY LANE:\n${lane}\n\nRULES:\n- Follow AGENT_CONTROL.md\n- Stay within assigned lane\n- Do not expand scope\n- Add tests when code changes require them\n- Produce a clean diff\n\nMISSION:\n\n${mission}\n\nCURRENT PR FILES:\n${changedFiles}\n\nLANE-SPECIFIC INSTRUCTIONS:\n${instructions}`;
+            const body = `@codex\n\nTASK: Execute implementation for ${lane}.\n\n${overlay}\n\nMISSION:\n${mission}\n\nFILES:\n${changedFiles}\n\nRULES:\n- stay within lane\n- do not expand scope\n- produce minimal diff\n- add tests where required`;
 
             await github.rest.issues.createComment({
               ...context.repo,
