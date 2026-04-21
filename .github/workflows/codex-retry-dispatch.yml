@@ -27,7 +27,7 @@ jobs:
             const labels = pr.labels.map(l => l.name);
             const issue_number = context.issue.number;
 
-            const retryLabel = labels.find(l => l.startsWith('retry:'));
+            const retryLabel = labels.find(l => l.startsWith('retry:') && l !== 'retry:needed');
             if (!retryLabel) return;
 
             let mission = '';
