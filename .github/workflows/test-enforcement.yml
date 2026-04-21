@@ -24,27 +24,38 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const files = `${{ steps.changes.outputs.all_changed_files }}`.split(' ');
+            const files = `${{ steps.changes.outputs.all_changed_files }}`.split(' ').filter(Boolean);
             const labels = context.payload.pull_request.labels.map(l => l.name);
+            const repo = context.repo;
+            const issue_number = context.issue.number;
+
+            async function removeLabel(name) {
+              try {
+                await github.rest.issues.removeLabel({ ...repo, issue_number, name });
+              } catch (e) {}
+            }
+
+            await removeLabel('test:pass');
+            await removeLabel('test:fail');
+            await removeLabel('tests-required');
 
             const codeChanged = files.some(f =>
               f.startsWith('backend/') || f.startsWith('ui/') || f.endsWith('.py') || f.endsWith('.ts')
             );
 
             const testsChanged = files.some(f => f.startsWith('tests/') || f.includes('.test'));
-
             const justified = labels.includes('no-tests-justified');
 
             if (codeChanged && !testsChanged && !justified) {
               await github.rest.issues.addLabels({
-                ...context.repo,
-                issue_number: context.issue.number,
-                labels: ['test:fail','tests-required']
+                ...repo,
+                issue_number,
+                labels: ['test:fail', 'tests-required']
               });
             } else {
               await github.rest.issues.addLabels({
-                ...context.repo,
-                issue_number: context.issue.number,
+                ...repo,
+                issue_number,
                 labels: ['test:pass']
               });
             }
