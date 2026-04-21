@@ -43,9 +43,40 @@ jobs:
 
             const fileSummary = files.map(f => `- ${f.filename} (${f.status})`).join('\n');
 
+            const patchSummary = files
+              .filter(f => f.patch)
+              .slice(0, 8)
+              .map(f => {
+                const patch = f.patch.length > 1500 ? `${f.patch.slice(0, 1500)}\n... [truncated]` : f.patch;
+                return `FILE: ${f.filename}\nPATCH:\n${patch}`;
+              })
+              .join('\n\n');
+
+            const issueComments = await github.paginate(github.rest.issues.listComments, {
+              ...context.repo,
+              issue_number,
+              per_page: 100
+            });
+
+            const reviewComments = await github.paginate(github.rest.pulls.listReviewComments, {
+              ...context.repo,
+              pull_number: issue_number,
+              per_page: 100
+            });
+
+            const commentSummary = issueComments
+              .slice(-5)
+              .map(c => `COMMENT by ${c.user.login}: ${String(c.body || '').slice(0, 500)}`)
+              .join('\n\n');
+
+            const reviewSummary = reviewComments
+              .slice(-8)
+              .map(c => `REVIEW on ${c.path || 'unknown'} by ${c.user.login}: ${String(c.body || '').slice(0, 400)}`)
+              .join('\n\n');
+
             const failureLabels = labels.filter(l => l.endsWith(':fail') || l === 'tests-required').join(', ');
 
-            const body = `@codex\n\nTASK: Retry execution for ${retryLabel}.\n\nCONTEXT:\n- Previous attempt failed\n- Failure signals: ${failureLabels || 'unknown'}\n\nMISSION:\n${mission}\n\nCHANGED FILES:\n${fileSummary}\n\nINSTRUCTIONS:\n- Fix only the issues causing failure\n- Do not expand scope\n- Ensure tests pass\n- Keep changes minimal and targeted\n- Do not modify unrelated files`;
+            const body = `@codex\n\nTASK: Retry execution for ${retryLabel}.\n\nCONTEXT:\n- Previous attempt failed\n- Failure signals: ${failureLabels || 'unknown'}\n\nMISSION:\n${mission}\n\nCHANGED FILES:\n${fileSummary}\n\nDIFF CONTEXT:\n${patchSummary || 'No patch context available.'}\n\nRECENT ISSUE COMMENTS:\n${commentSummary || 'No recent issue comments.'}\n\nRECENT REVIEW FEEDBACK:\n${reviewSummary || 'No recent review comments.'}\n\nINSTRUCTIONS:\n- Fix only the issues causing failure\n- Prioritize review feedback and failing labels\n- Do not expand scope\n- Ensure tests pass\n- Keep changes minimal and targeted\n- Do not modify unrelated files`;
 
             await github.rest.issues.createComment({
               ...context.repo,
