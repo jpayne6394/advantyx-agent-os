@@ -1,130 +1,61 @@
 # AGENT CONTROL
 
-This file defines the authority model, execution boundaries, routing rules, and merge policy for all agents.
+This file defines the authority model, execution boundaries, routing rules, and autonomous builder constraints.
 
 ## Core principle
 
-Agents operate on **bounded authority with explicit triggers**.
+Advantyx operates as a **bounded autonomous builder system**.
 
 No agent is allowed to:
-- invent roadmap direction
+- invent roadmap direction without strategist input
 - self-expand scope
-- override control agents
-- merge changes that have not satisfied policy
+- override budget or retry controls
+- merge unsafe or unverified work
 
 ## Authority hierarchy
 
-1. Planner → defines work and selects the execution lane
-2. Reviewer → enforces implementation quality and completeness
-3. Guard → enforces constraints, anti-drift, and scope fidelity
-4. Release Manager → controls merge mode and release readiness
-5. Executors → implement only within assigned lane
-6. Analysts → observe, diagnose, and propose only
+1. Strategist → defines direction and scope
+2. Planner → selects tasks and allocates budget
+3. Verifier / Guard → enforces correctness and stops drift
+4. Executor → implements within strict bounds
+5. Reporter → records outcomes
 
-## Core autonomous loop
+## Budget rules
 
-1. Planner classifies the task
-2. Routing policy assigns the execution lane
-3. Executor implements within lane boundaries
-4. Reviewer validates code quality, tests, and deliverables
-5. Guard validates scope, architecture, and anti-drift rules
-6. Release Manager chooses merge method and approves auto-merge eligibility
+- Always reserve at least 25% of daily capacity
+- Always leave 3% unused
+- No single task may exceed 35% of usable budget
+- Tasks exceeding budget must be deferred
 
-## Source files
+## Retry / anti-loop rules
 
-- `docs/current_mission.md` → active execution
-- `docs/backlog.md` → future ideas
-- `.github/agent-routing.yml` → lane assignment and merge strategy
-- `.github/workflows/agent-routing.yml` → PR labeling and route detection
-- `.github/workflows/auto-merge.yml` → autonomous merge gate
+- Maximum 2 attempts per task
+- Stop immediately on repeated identical failure
+- Do not allow retry loops to consume full budget
 
-## Routing rules
+## Execution loop
 
-Routing is determined by the strongest matching lane from changed paths and labels.
-
-Current lanes:
-- `agent:backend`
-- `agent:frontend`
-- `agent:data`
-- `agent:qa`
-- `agent:platform`
-
-If multiple lanes match, Planner or Guard must collapse the mission to one primary lane before merge.
-
-## Execution rules
-
-- All work must map to mission
-- All work must be testable
-- All work must produce output report
-- Executors may only work inside their assigned lane unless mission explicitly authorizes cross-lane work
-
-## Reviewer rules
-
-Reviewer must confirm:
-- implementation matches mission
-- tests exist or the no-test reason is explicit
-- deliverables are complete
-- changes are internally coherent
-
-## Guard rules
-
-Guard must flag:
-- scope expansion
-- architecture deviation
-- missing tests
-- unclear deliverables
-- cross-lane drift without authorization
-- merge policy mismatch
-
-## Autonomous merge policy
-
-### Preferred mode
-Use GitHub native auto-merge when repository settings allow it and branch protection rules require checks and/or reviews.
-
-### Fallback mode
-If native auto-merge is unavailable, the release workflow may merge directly only when all of the following are true:
-- PR is not draft
-- routing lane is resolved to exactly one primary lane
-- `review:pass` label is present
-- `guard:pass` label is present
-- `automerge` label is present
-- no blocking labels exist
-
-### Merge method policy
-- frontend/UI heavy work → `squash`
-- backend/domain logic work → `squash`
-- data/migration or generated-history-sensitive work → `rebase`
-- docs/meta-only work → `squash`
-- mixed or ambiguous work → `squash`
-
-## Blocking labels
-Any of the following must block merge:
-- `guard:fail`
-- `review:fail`
-- `needs-human`
-- `do-not-merge`
-- `routing:unresolved`
+1. Strategist defines scoped work
+2. Planner selects funded tasks
+3. Prompt engine generates execution packets
+4. Executor runs bounded changes
+5. Verifier checks correctness
+6. Reporter records result
 
 ## Stop conditions
-Agents must stop when:
-- mission complete
-- PR ready
-- policy outcome reached
 
-## Human escalation rule
-nHuman involvement is minimized, but escalation is mandatory when:
-- routing is unresolved
-- a PR spans multiple primary lanes without explicit mission approval
-- security/compliance risk is identified
-- a destructive migration or production-risking change is proposed
+- budget cap reached
+- retry limit reached
+- repeated failure detected
+- scope drift detected
+- unsafe change detected
 
 ## Design intent
 
-This system is designed to scale to multiple agents without chaos by enforcing:
+This system exists to:
 
-- role clarity
-- clean handoffs
-- strict boundaries
-- auditable actions
-- deterministic routing
-- policy-based autonomous merging
+- think through problems clearly
+- convert ideas into precise work
+- execute safely without looping or burning budget
+
+It is not tied to a single product repo.
