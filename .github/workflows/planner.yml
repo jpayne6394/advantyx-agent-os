@@ -1,0 +1,24 @@
+name: Planner Router
+
+on:
+  issues:
+    types: [opened, labeled, edited]
+
+jobs:
+  planner:
+    if: contains(github.event.issue.labels.*.name, 'agent:planner')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO_NAME: ${{ github.repository }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install requests
+      - run: python .github/planner/run_planner.py
