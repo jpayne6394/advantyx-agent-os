@@ -6,5 +6,5 @@ test_failure_count: 0.00
 scope_failure_count: 0.00
 quality_failure_count: 0.00
 decay_factor: 0.85
-last_updated: 2026-05-31T19:45:42.222Z
+last_updated: 2026-06-01T05:21:57.255Z
 ```
