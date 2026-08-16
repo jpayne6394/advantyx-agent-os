@@ -2,4 +2,4 @@
 
 ## Rules
 
-_No rules generated_
+- Favor smaller, clearer diffs and verify implementation completeness before finishing
