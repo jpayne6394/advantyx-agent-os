@@ -45,12 +45,12 @@ The advisor also reports a legacy `vector` extension installed in `public`; that
 
 ## Performance notes
 
-The initial advisor run identified unindexed P3PO foreign keys. Migration `index_p3po_foreign_keys` added covering indexes and common project/status indexes.
+The initial advisor run identified unindexed P3PO foreign keys. Migration `20260816020430 index_p3po_foreign_keys` added covering indexes and common project/status indexes. A follow-up advisor run no longer reports unindexed foreign keys in the `p3po` schema. Newly created indexes may be reported as unused until real workload accumulates.
 
 ## Migration history
 
 - `20260816020050 create_p3po_foundation`
-- `index_p3po_foreign_keys` (subsequent migration; query Supabase migration history for generated version)
+- `20260816020430 index_p3po_foreign_keys`
 
 ## Production rule
 
