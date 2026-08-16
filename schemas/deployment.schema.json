@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://p3po.local/schemas/deployment.schema.json",
+  "title": "P3PO Deployment Configuration",
+  "type": "object",
+  "required": ["schemaVersion", "deploymentId", "displayName", "status", "features", "integrations"],
+  "properties": {
+    "schemaVersion": {"type": "string"},
+    "deploymentId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+    "displayName": {"type": "string", "minLength": 1},
+    "status": {"enum": ["active", "paused", "archived"]},
+    "features": {
+      "type": "object",
+      "additionalProperties": {"type": "boolean"}
+    },
+    "integrations": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["binding", "provider"],
+        "properties": {
+          "binding": {"type": "string"},
+          "provider": {"type": "string"},
+          "secretSource": {"enum": ["environment", "vault", "managed"]}
+        },
+        "additionalProperties": true
+      }
+    },
+    "security": {"type": "object"},
+    "learning": {"type": "object"}
+  },
+  "additionalProperties": true
+}
