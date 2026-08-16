@@ -1,71 +1,82 @@
-# Advantyx Agent OS
+# P3PO
 
-AI-native operating system for structured software delivery, product analysis, and controlled execution.
+P3PO is a reusable agent operations platform for controlled project delivery, business operations, verification, release management, and continuous operational learning.
 
-This repo is seeded from the agent-control pattern already used in `james-river-dashboard` and expanded into a reusable multi-agent framework for future projects.
+P3PO is company-neutral by design. Customer or project names, business rules, repositories, data sources, and optional capabilities are configured outside the reusable core.
 
-## Purpose
+## Core capabilities
 
-Advantyx Agent OS provides:
+- bounded agent authority
+- supervisor-driven work orders
+- independent QA and review
+- guardrails and anti-drift controls
+- evidence-backed release gates
+- durable project state
+- defect and lesson memory
+- reusable playbooks
+- integration adapters
+- optional business feature modules
 
-- mission-driven execution
-- bounded role authority
-- clean agent handoffs
-- drift control
-- auditable delivery
-- reusable repo-level agent definitions
-
-## Core model
-
-The system is organized into four layers:
+## Core layers
 
 1. **Control**
-   - Planner
+   - Supervisor / Planner
    - Reviewer
    - Guard
-   - Release Manager
+   - Release Controller
 2. **Execution**
-   - Backend Engineer
-   - Frontend Engineer
-   - Data Engineer
-   - QA Engineer
-3. **Analysis / Improvement**
-   - Business Analyst
-   - Workflow Analyst
-   - Drift Analyst
-   - Technical Innovator
-4. **Program files**
-   - `AGENT_CONTROL.md`
-   - `docs/current_mission.md`
-   - `docs/backlog.md`
-   - `.github/agents/`
+   - engineering agents
+   - data agents
+   - QA agents
+   - configurable specialists
+3. **Learning**
+   - defects
+   - lessons
+   - regression protections
+   - success playbooks
+   - recurrence metrics
+4. **Integrations**
+   - source control
+   - databases
+   - business systems
+   - document systems
+   - custom adapters
+5. **Optional features**
+   - Inventory Intelligence
+   - Content Operations
+   - SEO Operations
+   - Analytics
+   - customer-defined modules
+
+## Product isolation rule
+
+The P3PO core must contain no customer names, customer-specific business facts, private repositories, brand rules, or customer-only logic.
+
+Development and customer deployments attach through configuration and adapters. A customer-specific lesson may be promoted to the core only after it is generalized and stripped of customer-specific information.
 
 ## Source of truth
 
-- `AGENT_CONTROL.md` defines the operating model, authority, and constraints.
-- `docs/current_mission.md` is the only file that active executors should implement against.
-- `docs/backlog.md` holds future work and ideas.
-- `.github/agents/` contains repo-scoped agent definitions.
+- `AGENT_CONTROL.md` — authority and operating policy
+- `docs/project-adapter-contract.md` — external project/deployment boundary
+- `docs/work-order-contract.md` — executable work contract
+- `docs/learning-system.md` — operational learning model
+- `docs/feature-module-contract.md` — optional capability boundary
+- `docs/current_mission.md` — active P3PO product work
+- `docs/backlog.md` — future product work
+- `.github/agents/` — reusable agent definitions
 
-## Initial bootstrap goal
+## Development backend
 
-The first milestone for this repo is to serve as a reusable base for:
+P3PO may use an existing development database or service while the product is being built. Physical backend names are not product identity and must be hidden behind neutral integration keys.
 
-- new product repos
-- migration repos
-- delivery teams with planner-reviewer-guard-release flow
-- issue-driven worker execution with analyst support
+The initial development inventory backend is connected only through the `inventory_backend_dev` adapter and can be replaced without changing P3PO core behavior.
 
 ## Working rules
 
+- Executors do not approve their own work.
+- Optional modules are disabled by default unless a deployment enables them.
 - Do not execute backlog directly.
-- Do not let worker agents define product direction.
-- Prefer small, testable steps.
-- Require completion reports.
-- Treat Guard as the anti-drift authority.
-- Treat Reviewer as quality authority.
-- Treat Planner as sequencing authority.
-
-## Next step
-
-Read `AGENT_CONTROL.md`, then refine `docs/current_mission.md` for the first real build-out of the agent department.
+- Prefer bounded, testable work orders.
+- Require evidence for completion.
+- Convert repeated defects into deterministic controls.
+- Never let customer-specific logic leak into the reusable core.
