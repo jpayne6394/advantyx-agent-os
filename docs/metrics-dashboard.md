@@ -1,14 +1,14 @@
 # Agent OS Metrics Dashboard
 
-_Last updated: 2026-08-16T01:14:46.353Z_
+_Last updated: 2026-08-16T06:37:53.814Z_
 
 ## Overview
-- Total PRs: 0
-- Merge Ready: 0
-- Blocked: 0
-- Retry Needed: 0
+- Total PRs: 1
+- Merge Ready: 1
+- Blocked: 1
+- Retry Needed: 1
 - Drift Detected: 0
-- Needs Human: 0
+- Needs Human: 1
 
 ## Queue
 - Active: 0
@@ -16,14 +16,14 @@ _Last updated: 2026-08-16T01:14:46.353Z_
 
 ## Priority Mix
 - High: 0
-- Normal: 0
+- Normal: 1
 - Low: 0
 
 ## Failure Types
 - Test: 0
-- Quality: 0
+- Quality: 1
 - Scope: 0
 
 ## Timing
-- Avg Age (hrs): 0
+- Avg Age (hrs): 4.5
 - Stale (>24h): 0
