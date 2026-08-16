@@ -1,31 +1,31 @@
-# Project Adapter Contract
+# Deployment Adapter Contract
 
 ## Purpose
 
-Project adapters connect Advantyx Agent OS to a specific product without contaminating the reusable core with product-specific assumptions.
+Deployment adapters connect P3PO to a customer, project, or product without contaminating the reusable core with deployment-specific assumptions.
 
-The core owns orchestration, authority, evidence, quality gates, learning rules, work-order state, and release policy.
+P3PO core owns orchestration, authority, evidence, quality gates, learning rules, work-order state, feature contracts, and release policy.
 
-A project adapter owns product-specific repositories, integrations, constraints, approved references, risk rules, acceptance checks, and specialist dependencies.
+A deployment adapter owns repositories, integrations, constraints, approved references, risk rules, acceptance checks, source precedence, and enabled specialist capabilities for that deployment.
 
 ## Isolation rule
 
-The reusable core MUST NOT contain project names, brand rules, product copy, business facts, credentials, commerce data, or project-specific visual rules.
+The reusable core MUST NOT contain customer names, project names, brand rules, product copy, business facts, credentials, commerce data, or deployment-specific visual rules.
 
-Those belong under `projects/<project-id>/` or in external systems referenced by the adapter.
+Those belong in deployment configuration or external systems referenced by the adapter.
 
-A lesson may be promoted from project scope into core scope only when it is demonstrably reusable across projects.
+A lesson may be promoted from deployment scope into core scope only when it is demonstrably reusable and has been stripped of deployment-specific information.
 
 ## Required adapter fields
 
-Each `projects/<project-id>/project.json` must declare:
+Each deployment configuration must declare:
 
-- `projectId`
+- `deploymentId`
 - `displayName`
 - `status`
-- `primaryRepository`
-- `executionRepositories`
+- `repositories`
 - `sourceSystems`
+- `features`
 - `specialists`
 - `releasePolicy`
 - `learningPolicy`
@@ -35,37 +35,46 @@ Each `projects/<project-id>/project.json` must declare:
 
 Each adapter must explicitly rank authoritative systems by data class. Agents may not silently choose between conflicting sources.
 
-Example classes:
+Typical classes include:
 
 - source code
-- commerce data
+- operational/business data
 - business facts
-- visual approvals
+- design/approval references
 - work-order state
 - release evidence
 
-If two sources conflict and precedence is not defined, return `BLOCKED_SOURCE_CONFLICT`.
+If authoritative sources conflict and precedence is not defined, return `BLOCKED_SOURCE_CONFLICT`.
 
-## Specialist dependency rule
+## Feature and specialist dependency rule
 
-Existing project-specific bots, services, or data systems are treated as dependencies behind an adapter boundary.
+Existing bots, services, databases, or data systems are dependencies behind neutral adapter keys.
 
-The Agent OS core must not be rewritten around them.
+P3PO core must not be rewritten around a particular vendor, customer, project, table name, repository, or backend instance.
 
-If a dependency cannot be positively identified, the adapter may register it as `unresolved` and use it only after discovery.
+Examples:
+
+- `inventory_backend`
+- `source_control`
+- `document_store`
+- `commerce_backend`
+
+Physical provider details belong in deployment configuration.
 
 ## Agent authority
 
-Project adapters may narrow core authority but may not broaden it.
+Deployment adapters may narrow P3PO authority but may not broaden it.
 
-For example, a project may prohibit automatic production deployment even if the core release system supports it.
+For example, a deployment may prohibit automatic production deployment even if P3PO supports release automation.
 
 ## Portability target
 
-A new project should be bootstrappable by copying only:
+A new customer or project should be bootstrappable by supplying:
 
-1. the adapter template
-2. the project's rules and source mappings
-3. required specialist bindings
+1. a deployment configuration
+2. source mappings and precedence
+3. enabled feature modules
+4. integration bindings
+5. deployment-specific rules and acceptance checks
 
-No core orchestration file should require product-specific edits.
+No P3PO core orchestration file should require customer-specific edits.
