@@ -4,7 +4,7 @@
 dominant_failure_mode: none
 test_failure_count: 0.00
 scope_failure_count: 0.00
-quality_failure_count: 1.00
+quality_failure_count: 1.85
 decay_factor: 0.85
-last_updated: 2026-08-16T02:01:02.883Z
+last_updated: 2026-08-16T07:05:23.603Z
 ```
