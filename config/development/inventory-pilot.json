@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0.0",
+  "deploymentId": "development-inventory-pilot",
+  "displayName": "P3PO Development Inventory Pilot",
+  "status": "active",
+  "features": {
+    "software_delivery": true,
+    "inventory_intelligence": true,
+    "content_operations": false,
+    "seo_operations": false,
+    "analytics": false
+  },
+  "integrations": {
+    "inventory_backend": {
+      "binding": "inventory_backend_dev",
+      "provider": "supabase",
+      "projectRef": "udqjdegsqxfvaocuuvab",
+      "schema": "public",
+      "mode": "development",
+      "secretSource": "environment"
+    }
+  },
+  "security": {
+    "allowBrowserServiceRole": false,
+    "controlPlaneSchema": "p3po",
+    "controlPlaneAccess": "server-only"
+  },
+  "learning": {
+    "corePromotionRequiresGeneralization": true,
+    "maxCorrectionCycles": 3
+  }
+}
