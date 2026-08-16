@@ -1,62 +1,68 @@
-# Learning and Defect Memory
+# P3PO Learning and Defect Memory
 
 ## Objective
 
-Make the Agent OS improve from completed work without pretending that model weights are retrained by each run.
+Make P3PO improve from completed work without pretending model weights are retrained by each run.
 
-The system learns operationally by converting observed outcomes into durable rules, regression checks, playbooks, routing changes, and escalation thresholds.
+P3PO learns operationally by converting observed outcomes into durable rules, regression checks, playbooks, routing changes, feature safeguards, and escalation thresholds.
+
+## Learning scopes
+
+- `core` — generic rules safe to reuse across deployments
+- `tenant` — organization-wide rules that remain private to one deployment/customer
+- `project` — project-specific rules and history
+
+Customer-specific information never becomes core memory unless it is generalized and stripped of identifying or business-specific details.
 
 ## Learning record
 
-Every material failure or unusually successful pattern should create a learning record with:
+Every material failure or unusually successful pattern should record:
 
-- `learningId`
-- `projectId`
-- `scope`: `project` or `core`
-- `type`: `defect`, `success-pattern`, `decision`, `risk`
-- `area`
-- `observedBehavior`
-- `rootCause`
-- `correction`
-- `preventiveRule`
-- `regressionProtection`
-- `firstObservedWorkOrder`
-- `recurrenceCount`
-- `status`
+- learning ID
+- scope
+- deployment/project reference
+- type: defect, success-pattern, decision, or risk
+- area
+- observed behavior
+- root cause when supported by evidence
+- correction
+- preventive rule
+- regression protection
+- first observed work order
+- recurrence count
+- status
 
 ## Failure-to-control loop
 
-When QA or Release detects a material defect:
+When QA, Guard, or Release detects a material defect:
 
 1. record the defect
-2. identify the cause when evidence supports one
+2. determine root cause when evidence supports one
 3. correct the active work order
 4. add or strengthen a deterministic check where possible
-5. update the relevant project rule or playbook
+5. update the relevant deployment rule or playbook
 6. track recurrence
-7. promote a project lesson into core only when it is product-independent
+7. promote only generalized lessons into core
 
-A defect is not considered fully learned merely because it was fixed once.
+A defect is not considered fully learned because it was fixed once.
 
-Preferred terminal state: `prevented-by-control`.
+Preferred terminal state: `protected`, meaning a repeat is blocked or reliably detected by control.
 
 ## Recurrence rules
 
-- first occurrence: record + correction
-- second occurrence of same class: mandatory regression protection or explicit reason why automation is impossible
-- third occurrence: route to Guard for process-level review and tighten executor instructions
-- repeated human escalations of the same type: create a decision rule or require a durable project decision record
+- first occurrence: record and correct
+- second occurrence of same class: mandatory regression protection or explicit reason automation is impossible
+- third occurrence: Guard performs a process-level review and tightens routing, acceptance, or executor controls
+- repeated human escalations of the same type: create a durable decision rule where safe
 
 ## Success-pattern learning
 
-Learning also records processes that reliably reduce defects or correction cycles.
-
-A success pattern may become a playbook when:
+A process may become a reusable playbook when:
 
 - it succeeds across at least two comparable work orders, or
-- a human explicitly approves it as the project standard
+- an authorized human explicitly approves it as a standard
 
-## Metrics
+## Required metrics
 
 Track at minimum:
 
@@ -66,10 +72,11 @@ Track at minimum:
 - defects converted to regression protection
 - human escalations by class
 - average age of blocked work
-- false-done rate: executor completion reports later rejected by QA
+- false-done rate: executor completion claims later rejected by independent QA
+- feature-specific defect rates when optional modules are enabled
 
 ## No hidden tuning
 
-Adaptive changes must be visible in repository state, labels, rules, tests, or versioned configuration.
+Adaptive changes must be visible in versioned rules, database state, labels, tests, playbooks, or configuration.
 
-Do not rely on invisible prompt mutation as the only learning mechanism.
+Invisible prompt mutation cannot be the sole learning mechanism.
