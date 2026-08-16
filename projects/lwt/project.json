@@ -1,0 +1,74 @@
+{
+  "schemaVersion": "1.0.0",
+  "projectId": "lwt",
+  "displayName": "Living Well Today",
+  "status": "active-pilot",
+  "mission": "Finish the LWT Shopify Hydrogen storefront to production-candidate quality while using the project to validate and improve the reusable Agent OS.",
+  "primaryRepository": "jpayne6394/lwt-hydrogen-hv1",
+  "executionRepositories": [
+    "jpayne6394/lwt-hydrogen-hv1"
+  ],
+  "referenceRepositories": [
+    "jpayne6394/lwt",
+    "jpayne6394/lwt-ds",
+    "jpayne6394/lwt-hv2-exact-rebuild"
+  ],
+  "sourceSystems": {
+    "sourceCode": {
+      "authority": "jpayne6394/lwt-hydrogen-hv1"
+    },
+    "commerceData": {
+      "authority": "Shopify",
+      "rule": "Do not override live product price, availability, collection membership, or product identity from stale documents."
+    },
+    "engineeringState": {
+      "authority": "GitHub"
+    },
+    "businessAndDesignReferences": {
+      "authority": "approved project references / Google Drive",
+      "rule": "Only explicitly approved references are normative."
+    },
+    "inventoryIntelligence": {
+      "authority": "unresolved-existing-lwt-intelligence-system",
+      "status": "discover-before-use",
+      "rule": "Treat as an external project specialist. Do not rebuild or couple core Agent OS to it until positively identified."
+    }
+  },
+  "enabledAgents": [
+    "planner",
+    "frontend-engineer",
+    "reviewer",
+    "guard",
+    "qa",
+    "release-manager"
+  ],
+  "plannedSpecialists": [
+    "inventory-intelligence",
+    "shopify-commerce",
+    "seo-performance",
+    "content-trust"
+  ],
+  "releasePolicy": {
+    "automaticProductionDeploy": false,
+    "independentQaRequired": true,
+    "guardPassRequired": true,
+    "reviewPassRequired": true,
+    "blockOnP0": true,
+    "blockOnP1": true
+  },
+  "learningPolicy": {
+    "projectLearningPath": "projects/lwt/learning/",
+    "allowCorePromotion": true,
+    "promotionRule": "Promote only product-independent lessons with evidence of reuse."
+  },
+  "humanEscalation": {
+    "requiredFor": [
+      "production deployment",
+      "credentials or authorization",
+      "destructive changes",
+      "business fact conflicts",
+      "health/compliance uncertainty",
+      "three failed correction cycles"
+    ]
+  }
+}
