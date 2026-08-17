@@ -1,6 +1,6 @@
 # Agent OS Metrics Dashboard
 
-_Last updated: 2026-08-16T18:26:54.990Z_
+_Last updated: 2026-08-17T01:12:23.064Z_
 
 ## Overview
 - Total PRs: 1
@@ -25,5 +25,5 @@ _Last updated: 2026-08-16T18:26:54.990Z_
 - Scope: 0
 
 ## Timing
-- Avg Age (hrs): 16.4
+- Avg Age (hrs): 23.1
 - Stale (>24h): 0
